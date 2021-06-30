@@ -9,6 +9,11 @@ namespace Pipe
 
         protected PipeStreamBase(Pipe pipe)
         {
+            if (pipe == null)
+            {
+                throw new ArgumentNullException(nameof(pipe));
+            }
+
             this.pipe = pipe;
         }
 

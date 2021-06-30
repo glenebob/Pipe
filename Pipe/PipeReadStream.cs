@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Pipe
 {
@@ -16,9 +18,14 @@ namespace Pipe
             return pipe.Read(buffer, offset, count);
         }
 
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            return pipe.ReadAsync(buffer, offset, count);
+        }
+
         public override void Write(byte[] buffer, int offset, int count)
         {
-            throw new InvalidOperationException();
+            throw new NotSupportedException();
         }
     }
 }
