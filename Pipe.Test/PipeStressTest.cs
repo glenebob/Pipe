@@ -3,7 +3,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Threading;
 
 namespace Pipe.Test
 {
@@ -16,8 +15,7 @@ namespace Pipe.Test
         [TestMethod]
         public async Task StressTest()
         {
-            Pipe pipe = new Pipe();
-
+            var pipe = new Pipe();
             var readBuffer = new byte[8192];
             var writeBuffer = Enumerable.Range(0, 256).Select((i) => (byte)i).ToArray();
             var random = new Random();
@@ -30,16 +28,7 @@ namespace Pipe.Test
                     while (true)
                     {
                         int readCount = random.Next(8192) + 1;
-                        int read;
-
-                        try
-                        {
-                            read = pipe.Read(readBuffer, 0, readCount);
-                        }
-                        catch (Exception e)
-                        {
-                            throw;
-                        }
+                        int read = pipe.Read(readBuffer, 0, readCount);
 
                         Debug.WriteLine($"Tried: {readCount}, Read: {read}");
 

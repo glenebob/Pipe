@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using System.Threading;
 
 namespace Pipe
 {
@@ -41,9 +40,11 @@ namespace Pipe
                 return 0;
             }
 
-            if (SetupDirectWriteIfNeeded(buffer, offset, count))
+            Task<int> readTask = SetupDirectWriteIfNeeded(buffer, offset, count);
+
+            if (readTask != null)
             {
-                return readCompletionSource.Task.Result;
+                return readTask.Result;
             }
 
             return this.CopyToReadBuffer(buffer, offset, count);
@@ -63,15 +64,17 @@ namespace Pipe
                 return Task.FromResult(0);
             }
 
-            if (SetupDirectWriteIfNeeded(buffer, offset, count))
+            Task<int> readTask = SetupDirectWriteIfNeeded(buffer, offset, count);
+            
+            if (readTask != null)
             {
-                return readCompletionSource.Task;
+                return readTask;
             }
 
             return Task.FromResult(CopyToReadBuffer(buffer, offset, count));
         }
 
-        private bool SetupDirectWriteIfNeeded(byte[] buffer, int offset, int count)
+        private Task<int> SetupDirectWriteIfNeeded(byte[] buffer, int offset, int count)
         {
             lock (readWriteExclusionLock)
             {
@@ -83,24 +86,25 @@ namespace Pipe
                     )
                 )
                 {
-                    readCompletionSource = new TaskCompletionSource<int>();
+                    TaskCompletionSource<int> completionSource = new TaskCompletionSource<int>();
 
                     if (isEofSet)
                     {
-                        readCompletionSource.SetResult(0);
+                        completionSource.SetResult(0);
                     }
                     else
                     {
                         callersBuffer = buffer;
                         callersBufferOffset = offset;
                         callersBufferCount = count;
+                        readCompletionSource = completionSource;
                     }
 
-                    return true;
+                    return completionSource.Task;
                 }
             }
 
-            return false;
+            return null;
         }
 
         private int CopyToReadBuffer(byte[] buffer, int offset, int count)

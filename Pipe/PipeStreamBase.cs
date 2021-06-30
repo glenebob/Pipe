@@ -17,29 +17,50 @@ namespace Pipe
             this.pipe = pipe;
         }
 
-        public override bool CanSeek => false;
+        public override bool CanSeek
+        {
+            get
+            {
+                AssertNotDisposed();
 
-        public override bool CanTimeout => false;
+                return false;
+            }
+        }
 
-        public override long Length => throw new InvalidOperationException();
+        public override bool CanTimeout
+        {
+            get
+            {
+                AssertNotDisposed();
+
+                return false;
+            }
+        }
+
+        public override long Length => throw new NotSupportedException();
 
         public override long Position
         {
-            get => throw new InvalidOperationException();
-            set => throw new InvalidOperationException();
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
         }
-
-        public override void Flush()
-        { }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new InvalidOperationException();
+            throw new NotSupportedException();
         }
 
         public override void SetLength(long value)
         {
-            throw new InvalidOperationException();
+            throw new NotSupportedException();
+        }
+
+        protected void AssertNotDisposed()
+        {
+            if (pipe == null)
+            {
+                throw new ObjectDisposedException(nameof(Pipe));
+            }
         }
     }
 }
