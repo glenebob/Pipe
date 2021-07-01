@@ -16,24 +16,26 @@ namespace Pipe.Test
         public async Task StressTest()
         {
             var pipe = new Pipe();
-            var readBuffer = new byte[8192];
-            var writeBuffer = Enumerable.Range(0, 256).Select((i) => (byte)i).ToArray();
-            var random = new Random();
+            var readBuffer = new byte[256 * 52];
+            var writeBuffer = Enumerable.Range(0, 256 * 56).Select((i) => (byte)i).ToArray();
+            var random = new Random(5);
 
             var readTask = Task.Run(
                 () =>
                 {
+                    var random = new Random(10);
                     byte sequence = 0;
 
                     while (true)
                     {
-                        int readCount = random.Next(8192) + 1;
+                        int readCount = random.Next(1, 8192);
                         int read = pipe.Read(readBuffer, 0, readCount);
 
                         Debug.WriteLine($"Tried: {readCount}, Read: {read}");
 
                         if (read == 0)
                         {
+                            // This should mean the write loop ended and closed the pipe.
                             Debug.WriteLine($"<End of stream>");
 
                             return;
@@ -47,16 +49,27 @@ namespace Pipe.Test
                 }
             );
 
-            byte position = 0;
+            int position = 0;
 
-            for (int i = 0; i < 500; ++i)
+            for (int i = 0; i < 10000; ++i)
             {
-                int writeCount = (byte)random.Next(writeBuffer.Length - position) + 1;
+                int writeCount = random.Next(1, writeBuffer.Length - position);
 
                 pipe.Write(writeBuffer, position, writeCount);
 
-                position += (byte)writeCount;
+                if ((position += writeCount) == writeBuffer.Length)
+                {
+                    position = 0;
+                }
+
                 Debug.WriteLine($"Wrote: {writeCount}");
+
+                if (readTask.IsCompleted)
+                {
+                    // Task should not complete until after pipe.Close is called.
+                    // Something is wrong. We'll get the exception below.
+                    break;
+                }
             }
 
             pipe.Close();
