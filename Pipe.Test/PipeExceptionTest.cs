@@ -46,10 +46,11 @@ namespace Pipe.Test
         [ExpectedException(typeof(InvalidOperationException))]
         public void PipeReadThrowsOnReadInProgress()
         {
-            Pipe pipe = new Pipe();
+            var pipe = new Pipe();
+            var buffer = new byte[1];
 
-            pipe.ReadAsync(Utilities.OneByteArray, 0, 1);
-            pipe.Read(Utilities.OneByteArray, 0, 1);
+            pipe.ReadAsync(buffer, 0, buffer.Length);
+            pipe.Read(buffer, 0, buffer.Length);
         }
 
         [TestMethod]
@@ -91,10 +92,11 @@ namespace Pipe.Test
         [ExpectedException(typeof(InvalidOperationException))]
         public void PipeReadAsyncThrowsOnReadInProgress()
         {
-            Pipe pipe = new Pipe();
+            var pipe = new Pipe();
+            var buffer = new byte[1];
 
-            pipe.ReadAsync(Utilities.OneByteArray, 0, 1);
-            pipe.ReadAsync(Utilities.OneByteArray, 0, 1);
+            pipe.ReadAsync(buffer, 0, buffer.Length);
+            pipe.ReadAsync(buffer, 0, buffer.Length);
         }
 
         [TestMethod]
@@ -136,7 +138,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(EndOfStreamException))]
         public void PipeWriteThrowsOnWriteAfterClose()
         {
-            Pipe pipe = new Pipe();
+            var pipe = new Pipe();
 
             pipe.Close();
             pipe.Write(Utilities.EmptyByteArray, 0, 0);
@@ -181,7 +183,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(EndOfStreamException))]
         public void PipeWriteAsyncThrowsOnWriteAfterClose()
         {
-            Pipe pipe = new Pipe();
+            var pipe = new Pipe();
 
             pipe.Close();
             pipe.WriteAsync(Utilities.EmptyByteArray, 0, 0);

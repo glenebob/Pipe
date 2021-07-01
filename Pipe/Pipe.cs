@@ -7,12 +7,15 @@ namespace Pipe
 {
     public class Pipe
     {
-        private static int bufferSize = 8192;
+        private const int bufferSize = 8192;
+
+        private static readonly Task<int> zeroByteReadTask = Task.FromResult(0);
+
+        private readonly object readWriteExclusionLock;
 
         private LinkedList<byte[]> buffers;
         private int readBufferPosition;
         private int writeBufferPosition;
-        private object readWriteExclusionLock;
         private byte[] callersBuffer;
         private int callersBufferOffset;
         private int callersBufferCount;
@@ -35,11 +38,6 @@ namespace Pipe
                 throw new InvalidOperationException("Read operation already in progress");
             }
 
-            if (count == 0)
-            {
-                return 0;
-            }
-
             Task<int> readTask = SetupDirectWriteIfNeeded(buffer, offset, count);
 
             if (readTask != null)
@@ -59,11 +57,6 @@ namespace Pipe
                 throw new InvalidOperationException("Read operation already in progress");
             }
 
-            if (count == 0)
-            {
-                return Task.FromResult(0);
-            }
-
             Task<int> readTask = SetupDirectWriteIfNeeded(buffer, offset, count);
             
             if (readTask != null)
@@ -76,6 +69,11 @@ namespace Pipe
 
         private Task<int> SetupDirectWriteIfNeeded(byte[] buffer, int offset, int count)
         {
+            if (count == 0)
+            {
+                return zeroByteReadTask;
+            }
+
             lock (readWriteExclusionLock)
             {
                 if (
@@ -86,21 +84,19 @@ namespace Pipe
                     )
                 )
                 {
-                    TaskCompletionSource<int> completionSource = new TaskCompletionSource<int>();
-
                     if (isEofSet)
                     {
-                        completionSource.SetResult(0);
+                        return zeroByteReadTask;
                     }
                     else
                     {
                         callersBuffer = buffer;
                         callersBufferOffset = offset;
                         callersBufferCount = count;
-                        readCompletionSource = completionSource;
-                    }
+                        readCompletionSource = new TaskCompletionSource<int>();
 
-                    return completionSource.Task;
+                        return readCompletionSource.Task;
+                    }
                 }
             }
 
@@ -156,11 +152,12 @@ namespace Pipe
             {
                 lock (readWriteExclusionLock)
                 {
-                    if (callersBuffer != null)
+                    if (readCompletionSource != null)
                     {
                         bytesToCopy = Math.Min(count, callersBufferCount);
                         Array.Copy(buffer, offset, callersBuffer, callersBufferOffset, bytesToCopy);
                         count -= bytesToCopy;
+                        offset += bytesToCopy;
                         callersBuffer = null;
                         callersBufferOffset = 0;
                         callersBufferCount = 0;
@@ -169,13 +166,6 @@ namespace Pipe
 
                         readCompletionSource = null;
                         completionSource.SetResult(bytesToCopy);
-
-                        if (count == 0)
-                        {
-                            return;
-                        }
-
-                        offset += bytesToCopy;
                     }
                     else
                     {

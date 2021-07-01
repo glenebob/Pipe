@@ -10,7 +10,10 @@ namespace Pipe.Test
     public class PipeStressTest
     {
         // This test tries to expose errors in thread synchronization.
-        // This will never be a 100% reliable test, so it should be run
+        // This test, as a side effect, also tries to verify that the pipe
+        // under test behaves as a true FIFO.
+        // This will never be a 100% reliable test due to the nature of thread
+        // scheduling and synchronization, so it should be run
         // multiple times after changes that might affect synchronization.
         [TestMethod]
         public async Task StressTest()
