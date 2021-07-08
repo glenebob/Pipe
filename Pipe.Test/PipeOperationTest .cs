@@ -96,5 +96,29 @@ namespace Pipe.Test
                 Assert.AreEqual(0, b);
             }
         }
+
+        [TestMethod]
+        public void PipeWriteBlocksWithInsufficientSpace()
+        {
+            var pipe = new Pipe(1, 1);
+            var buffer = new byte[1];
+
+            Assert.IsTrue(pipe.WriteAsync(buffer, 0, buffer.Length).IsCompleted);
+            Assert.IsFalse(pipe.WriteAsync(buffer, 0, buffer.Length).IsCompleted);
+        }
+
+        [TestMethod]
+        public void BlockedPipeWriteCompletesAfterSufficientRead()
+        {
+            var pipe = new Pipe(1, 1);
+            var buffer = new byte[1];
+            Task writeTask;
+
+            Assert.IsTrue(pipe.WriteAsync(buffer, 0, buffer.Length).IsCompleted);
+            writeTask = pipe.WriteAsync(buffer, 0, buffer.Length);
+            Assert.IsFalse(writeTask.IsCompleted);
+            Assert.AreEqual(buffer.Length, pipe.Read(buffer, 0, buffer.Length));
+            Assert.IsTrue(writeTask.IsCompleted);
+        }
     }
 }

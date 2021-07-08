@@ -1,12 +1,27 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Pipe.Test
 {
     [TestClass]
     public class PipeExceptionTest
     {
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void PipeCtorThrowsOnNonPositiveBufferSize()
+        {
+            new Pipe(-1);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void PipeCtorThrowsOnNegativeMaximiumByteCount()
+        {
+            new Pipe(1, -1);
+        }
+
         [TestMethod]
         [ExpectedException(typeof(ArgumentNullException))]
         public void PipeReadThrowsOnNullBuffer()
@@ -90,13 +105,13 @@ namespace Pipe.Test
 
         [TestMethod]
         [ExpectedException(typeof(InvalidOperationException))]
-        public void PipeReadAsyncThrowsOnReadInProgress()
+        public async Task PipeReadAsyncThrowsOnReadInProgress()
         {
             var pipe = new Pipe();
             var buffer = new byte[1];
 
-            pipe.ReadAsync(buffer, 0, buffer.Length);
-            pipe.ReadAsync(buffer, 0, buffer.Length);
+            var t = pipe.ReadAsync(buffer, 0, buffer.Length);
+            await pipe.ReadAsync(buffer, 0, buffer.Length);
         }
 
         [TestMethod]
@@ -181,12 +196,33 @@ namespace Pipe.Test
 
         [TestMethod]
         [ExpectedException(typeof(EndOfStreamException))]
-        public void PipeWriteAsyncThrowsOnWriteAfterClose()
+        public async Task PipeWriteAsyncThrowsOnWriteAfterClose()
         {
             var pipe = new Pipe();
 
             pipe.Close();
-            pipe.WriteAsync(Utilities.EmptyByteArray, 0, 0);
+            await pipe.WriteAsync(Utilities.EmptyByteArray, 0, 0);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public async Task PipeWriteAsyncThrowsOnWriteInProgress()
+        {
+            var pipe = new Pipe();
+            var buffer = new byte[1];
+
+            var t = pipe.WriteAsync(buffer, 0, buffer.Length);
+            await pipe.WriteAsync(buffer, 0, buffer.Length);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void PipeWriteThrowsOnByteCountExceedsMaximum()
+        {
+            var pipe = new Pipe(1, 1);
+            var buffer = new byte[2];
+
+            pipe.Write(buffer, 0, buffer.Length);
         }
     }
 }

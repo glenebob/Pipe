@@ -7,38 +7,60 @@ namespace Pipe
 {
     public class Pipe
     {
-        private const int bufferSize = 8192;
+        private enum CallerType
+        {
+            None,
+            Reader,
+            Writer
+        }
 
-        private static readonly Task<int> zeroByteReadTask = Task.FromResult(0);
+        private static readonly Task<int> zeroByteCompletedTask = Task.FromResult(0);
 
         private readonly object readWriteExclusionLock;
 
+        private int bufferSize;
+        private int maximumByteCount;
         private LinkedList<byte[]> buffers;
         private int readBufferPosition;
         private int writeBufferPosition;
+        private int byteCount;
         private byte[] callersBuffer;
         private int callersBufferOffset;
         private int callersBufferCount;
-        private TaskCompletionSource<int> readCompletionSource;
+        private TaskCompletionSource<int> callersCompletionSource;
+        private CallerType callerType;
         private Action ensureBuffersFunction;
         private bool isEofSet;
 
-        public Pipe()
+        public Pipe(int bufferSize = 8192, int maximumByteCount = 0)
         {
+            if (bufferSize < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bufferSize));
+            }
+
+            if (maximumByteCount < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximumByteCount));
+            }
+
+            this.bufferSize = bufferSize;
+            this.maximumByteCount = maximumByteCount;
+
             readWriteExclusionLock = new object();
             ensureBuffersFunction = EnsureBuffers;
         }
 
         public int Read(byte[] buffer, int offset, int count)
         {
-            CheckReadWriteParameters(buffer, offset, count);
+            CheckReadWriteParameters(buffer, offset, count, CallerType.Reader);
 
-            if (readCompletionSource != null)
+            if (callerType == CallerType.Reader && callersCompletionSource != null)
             {
                 throw new InvalidOperationException("Read operation already in progress");
             }
 
-            Task<int> readTask = SetupDirectWriteIfNeeded(buffer, offset, count);
+            Task<int> readTask = SetupBlockedReadIfNeeded(buffer, offset, count);
 
             if (readTask != null)
             {
@@ -50,14 +72,14 @@ namespace Pipe
 
         public Task<int> ReadAsync(byte[] buffer, int offset, int count)
         {
-            CheckReadWriteParameters(buffer, offset, count);
+            CheckReadWriteParameters(buffer, offset, count, CallerType.Reader);
 
-            if (readCompletionSource != null)
+            if (callerType == CallerType.Reader && callersCompletionSource != null)
             {
-                throw new InvalidOperationException("Read operation already in progress");
+                return Task.FromException<int>(new InvalidOperationException("Read operation already in progress"));
             }
 
-            Task<int> readTask = SetupDirectWriteIfNeeded(buffer, offset, count);
+            Task<int> readTask = SetupBlockedReadIfNeeded(buffer, offset, count);
             
             if (readTask != null)
             {
@@ -67,11 +89,11 @@ namespace Pipe
             return Task.FromResult(CopyToReadBuffer(buffer, offset, count));
         }
 
-        private Task<int> SetupDirectWriteIfNeeded(byte[] buffer, int offset, int count)
+        private Task<int> SetupBlockedReadIfNeeded(byte[] buffer, int offset, int count)
         {
             if (count == 0)
             {
-                return zeroByteReadTask;
+                return zeroByteCompletedTask;
             }
 
             lock (readWriteExclusionLock)
@@ -86,16 +108,17 @@ namespace Pipe
                 {
                     if (isEofSet)
                     {
-                        return zeroByteReadTask;
+                        return zeroByteCompletedTask;
                     }
                     else
                     {
                         callersBuffer = buffer;
                         callersBufferOffset = offset;
                         callersBufferCount = count;
-                        readCompletionSource = new TaskCompletionSource<int>();
+                        callersCompletionSource = new TaskCompletionSource<int>();
+                        callerType = CallerType.Reader;
 
-                        return readCompletionSource.Task;
+                        return callersCompletionSource.Task;
                     }
                 }
             }
@@ -118,41 +141,112 @@ namespace Pipe
                 {
                     bytesToCopy = Math.Min(count, readBuffer.Length - readBufferPosition);
                 }
-            }
 
-            Array.Copy(readBuffer, readBufferPosition, buffer, offset, bytesToCopy);
+                Array.Copy(readBuffer, readBufferPosition, buffer, offset, bytesToCopy);
+                readBufferPosition += bytesToCopy;
+                byteCount -= bytesToCopy;
 
-            readBufferPosition += bytesToCopy;
-
-            if (readBufferPosition == bufferSize)
-            {
-                readBufferPosition = 0;
-
-                lock (readWriteExclusionLock)
+                if (readBufferPosition == bufferSize)
                 {
+                    readBufferPosition = 0;
                     buffers.RemoveFirst();
                 }
-            }
 
-            return bytesToCopy;
+                if (callersCompletionSource != null)
+                {
+                    if (byteCount + callersBufferCount <= maximumByteCount)
+                    {
+                        CopyFromWriteBuffer(callersBuffer, callersBufferOffset, callersBufferCount);
+
+                        callersBuffer = null;
+                        callersBufferOffset = 0;
+                        callersBufferCount = 0;
+                        callersCompletionSource = null;
+                    }
+                }
+
+                return bytesToCopy;
+            }
         }
 
         public void Write(byte[] buffer, int offset, int count)
         {
-            CheckReadWriteParameters(buffer, offset, count);
+            CheckReadWriteParameters(buffer, offset, count, CallerType.Writer);
+
+            if (callerType == CallerType.Writer && callersCompletionSource != null)
+            {
+                throw new InvalidOperationException("Write operation already in progress");
+            }
 
             if (isEofSet)
             {
                 throw new EndOfStreamException("Pipe is closed");
             }
 
+            this.CopyFromWriteBuffer(buffer, offset, count);
+        }
+
+        public Task WriteAsync(byte[] buffer, int offset, int count)
+        {
+            CheckReadWriteParameters(buffer, offset, count, CallerType.Writer);
+
+            if (callerType == CallerType.Writer && callersCompletionSource != null)
+            {
+                return Task.FromException(new InvalidOperationException("Write operation already in progress"));
+            }
+
+            if (isEofSet)
+            {
+                return Task.FromException(new EndOfStreamException("Pipe is closed"));
+            }
+
+            Task<int> writeTask = SetupBlockedWriteIfNeeded(buffer, offset, count);
+
+            if (writeTask != null)
+            {
+                return writeTask;
+            }
+
+            this.CopyFromWriteBuffer(buffer, offset, count);
+
+            return Task.CompletedTask;
+        }
+
+        private Task<int> SetupBlockedWriteIfNeeded(byte[] buffer, int offset, int count)
+        {
+            if (count == 0)
+            {
+                return zeroByteCompletedTask;
+            }
+
+            lock (readWriteExclusionLock)
+            {
+                if (
+                    byteCount + count > maximumByteCount
+                )
+                {
+                    callersBuffer = buffer;
+                    callersBufferOffset = offset;
+                    callersBufferCount = count;
+                    callersCompletionSource = new TaskCompletionSource<int>();
+                    callerType = CallerType.Writer;
+
+                    return callersCompletionSource.Task;
+                }
+            }
+
+            return null;
+        }
+
+        private void CopyFromWriteBuffer(byte[] buffer, int offset, int count)
+        {
             int bytesToCopy;
 
             while (count > 0)
             {
                 lock (readWriteExclusionLock)
                 {
-                    if (readCompletionSource != null)
+                    if (callersCompletionSource != null)
                     {
                         bytesToCopy = Math.Min(count, callersBufferCount);
                         Array.Copy(buffer, offset, callersBuffer, callersBufferOffset, bytesToCopy);
@@ -162,9 +256,9 @@ namespace Pipe
                         callersBufferOffset = 0;
                         callersBufferCount = 0;
 
-                        TaskCompletionSource<int> completionSource = readCompletionSource;
+                        TaskCompletionSource<int> completionSource = callersCompletionSource;
 
-                        readCompletionSource = null;
+                        callersCompletionSource = null;
                         completionSource.SetResult(bytesToCopy);
                     }
                     else
@@ -180,16 +274,10 @@ namespace Pipe
                         writeBufferPosition += bytesToCopy;
                         offset += bytesToCopy;
                         count -= bytesToCopy;
+                        byteCount += bytesToCopy;
                     }
                 }
             }
-        }
-
-        public Task WriteAsync(byte[] buffer, int offset, int count)
-        {
-            Write(buffer, offset, count);
-
-            return Task.CompletedTask;
         }
 
         public void Close()
@@ -205,12 +293,12 @@ namespace Pipe
 
                 if (callersBuffer != null)
                 {
-                    readCompletionSource.SetResult(0);
+                    callersCompletionSource.SetResult(0);
                 }
             }
         }
 
-        private void CheckReadWriteParameters(byte[] buffer, int offset, int count)
+        private void CheckReadWriteParameters(byte[] buffer, int offset, int count, CallerType callerType)
         {
             if (buffer == null)
             {
@@ -231,6 +319,17 @@ namespace Pipe
             {
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
+
+            if (callerType == CallerType.Writer)
+            {
+                if (
+                    maximumByteCount > 0 &&
+                    count > maximumByteCount
+                )
+                {
+                    throw new ArgumentOutOfRangeException(nameof(count), "Byte count exceeds the pipe's maximum byte count");
+                }
+            }
         }
 
         private void EnsureBuffers()
@@ -248,13 +347,10 @@ namespace Pipe
 
         private void EnsureWriteBuffer()
         {
-            lock (readWriteExclusionLock)
+            if (buffers.Count == 0 || writeBufferPosition == bufferSize)
             {
-                if (buffers.Count == 0 || writeBufferPosition == bufferSize)
-                {
-                    buffers.AddLast(new byte[bufferSize]);
-                    writeBufferPosition = 0;
-                }
+                buffers.AddLast(new byte[bufferSize]);
+                writeBufferPosition = 0;
             }
         }
     }
