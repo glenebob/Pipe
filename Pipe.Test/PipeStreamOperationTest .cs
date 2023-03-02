@@ -11,13 +11,10 @@ namespace Pipe.Test
         {
             var pipe = new Pipe();
             var buffer = new byte[1];
+            using var readStream = new PipeReadStream(pipe);
+            using (var writeStream = new PipeWriteStream(pipe)) { }
 
-            using (var readStream = new PipeReadStream(pipe))
-            {
-                using (var writeStream = new PipeWriteStream(pipe)) { }
-
-                Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
-            }
+            Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
         }
 
         [TestMethod]
@@ -25,14 +22,11 @@ namespace Pipe.Test
         {
             var pipe = new Pipe();
             var buffer = new byte[1];
+            using var readStream = new PipeReadStream(pipe);
+            using (var writeStream = new PipeWriteStream(pipe)) { }
 
-            using (var readStream = new PipeReadStream(pipe))
-            {
-                using (var writeStream = new PipeWriteStream(pipe)) { }
-
-                Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
-                Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
-            }
+            Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
+            Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
         }
 
         [TestMethod]
@@ -40,17 +34,15 @@ namespace Pipe.Test
         {
             var pipe = new Pipe();
             var buffer = new byte[1];
+            using var readStream = new PipeReadStream(pipe);
 
-            using (var readStream = new PipeReadStream(pipe))
+            using (var writeStream = new PipeWriteStream(pipe))
             {
-                using (var writeStream = new PipeWriteStream(pipe))
-                {
-                    writeStream.Write(buffer, 0, buffer.Length);
-                }
-
-                Assert.AreEqual(1, readStream.Read(buffer, 0, buffer.Length));
-                Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
+                writeStream.Write(buffer, 0, buffer.Length);
             }
+
+            Assert.AreEqual(1, readStream.Read(buffer, 0, buffer.Length));
+            Assert.AreEqual(0, readStream.Read(buffer, 0, buffer.Length));
         }
 
         [TestMethod]
@@ -58,20 +50,18 @@ namespace Pipe.Test
         {
             var pipe = new Pipe();
             var buffer = new byte[8192 * 2];
+            using var readStream = new PipeReadStream(pipe);
 
-            using (var readStream = new PipeReadStream(pipe))
+            var readCountTask = readStream.ReadAsync(buffer, 0, buffer.Length);
+
+            Assert.IsFalse(readCountTask.IsCompleted);
+
+            using (var writeStream = new PipeWriteStream(pipe))
             {
-                var readCountTask = readStream.ReadAsync(buffer, 0, buffer.Length);
-
-                Assert.IsFalse(readCountTask.IsCompleted);
-
-                using (var writeStream = new PipeWriteStream(pipe))
-                {
-                    writeStream.Write(buffer, 0, buffer.Length);
-                }
-
-                Assert.AreEqual(buffer.Length, await readCountTask);
+                writeStream.Write(buffer, 0, buffer.Length);
             }
+
+            Assert.AreEqual(buffer.Length, await readCountTask);
         }
     }
 }

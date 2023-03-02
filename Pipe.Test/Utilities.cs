@@ -1,8 +1,10 @@
-﻿namespace Pipe.Test
+﻿using System;
+
+namespace Pipe.Test
 {
     public static class Utilities
     {
-        public static byte[] EmptyByteArray = new byte[0];
-        public static byte[] OneByteArray = new byte[1];
+        public static readonly byte[] EmptyByteArray = Array.Empty<byte>();
+        public static readonly byte[] OneByteArray = new byte[1];
     }
 }

@@ -18,7 +18,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(NotSupportedException))]
         public void PipeReadStreamLengthGetThrows()
         {
-            var l = new PipeReadStream(new Pipe()).Length;
+            _ = new PipeReadStream(new Pipe()).Length;
         }
 
         [TestMethod]
@@ -32,7 +32,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(NotSupportedException))]
         public void PipeReadStreamPositionGetThrows()
         {
-            var l = new PipeReadStream(new Pipe()).Position;
+            _ = new PipeReadStream(new Pipe()).Position;
         }
 
         [TestMethod]
@@ -46,7 +46,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(NotSupportedException))]
         public void PipeReadStreamSeekThrows()
         {
-            var l = new PipeReadStream(new Pipe()).Seek(0, SeekOrigin.Begin);
+            _ = new PipeReadStream(new Pipe()).Seek(0, SeekOrigin.Begin);
         }
 
         [TestMethod]
@@ -144,28 +144,28 @@ namespace Pipe.Test
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeReadStreamCanReadGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeReadStream().CanRead;
+            _ = GetDisposedPipeReadStream().CanRead;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeReadStreamCanWriteGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeReadStream().CanWrite;
+            _ = GetDisposedPipeReadStream().CanWrite;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeReadStreamCanSeekGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeReadStream().CanSeek;
+            _ =  GetDisposedPipeReadStream().CanSeek;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeReadStreamCanTimeoutGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeReadStream().CanTimeout;
+            _ = GetDisposedPipeReadStream().CanTimeout;
         }
 
         [TestMethod]

@@ -17,9 +17,9 @@ namespace Pipe
         private static readonly Task<int> zeroByteCompletedTask = Task.FromResult(0);
 
         private readonly object readWriteExclusionLock;
+        private readonly int bufferSize;
+        private readonly int maximumByteCount;
 
-        private int bufferSize;
-        private int maximumByteCount;
         private LinkedList<byte[]> buffers;
         private int readBufferPosition;
         private int writeBufferPosition;

@@ -110,7 +110,7 @@ namespace Pipe.Test
             var pipe = new Pipe();
             var buffer = new byte[1];
 
-            var t = pipe.ReadAsync(buffer, 0, buffer.Length);
+            _ = pipe.ReadAsync(buffer, 0, buffer.Length);
             await pipe.ReadAsync(buffer, 0, buffer.Length);
         }
 
@@ -211,7 +211,7 @@ namespace Pipe.Test
             var pipe = new Pipe();
             var buffer = new byte[1];
 
-            var t = pipe.WriteAsync(buffer, 0, buffer.Length);
+            _ = pipe.WriteAsync(buffer, 0, buffer.Length);
             await pipe.WriteAsync(buffer, 0, buffer.Length);
         }
 

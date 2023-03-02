@@ -18,7 +18,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(NotSupportedException))]
         public void PipeWriteStreamLengthGetThrows()
         {
-            var l = new PipeWriteStream(new Pipe()).Length;
+            _ = new PipeWriteStream(new Pipe()).Length;
         }
 
         [TestMethod]
@@ -32,7 +32,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(NotSupportedException))]
         public void PipeWriteStreamPositionGetThrows()
         {
-            var l = new PipeWriteStream(new Pipe()).Position;
+            _ = new PipeWriteStream(new Pipe()).Position;
         }
 
         [TestMethod]
@@ -46,7 +46,7 @@ namespace Pipe.Test
         [ExpectedException(typeof(NotSupportedException))]
         public void PipeWriteStreamSeekThrows()
         {
-            var l = new PipeWriteStream(new Pipe()).Seek(0, SeekOrigin.Begin);
+            _ = new PipeWriteStream(new Pipe()).Seek(0, SeekOrigin.Begin);
         }
 
         [TestMethod]
@@ -137,28 +137,28 @@ namespace Pipe.Test
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeWriteStreamCanReadGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeWriteStream().CanRead;
+            _ = GetDisposedPipeWriteStream().CanRead;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeWriteStreamCanWriteGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeWriteStream().CanWrite;
+            _ = GetDisposedPipeWriteStream().CanWrite;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeWriteStreamCanCanSeekGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeWriteStream().CanSeek;
+            _ = GetDisposedPipeWriteStream().CanSeek;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ObjectDisposedException))]
         public void PipeWriteStreamCanTimeoutGetThrowsAfterDispose()
         {
-            var b = GetDisposedPipeWriteStream().CanTimeout;
+            _ = GetDisposedPipeWriteStream().CanTimeout;
         }
 
         [TestMethod]
