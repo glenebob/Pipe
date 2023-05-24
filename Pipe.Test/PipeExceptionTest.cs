@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -10,7 +11,14 @@ namespace Pipe.Test
     {
         [TestMethod]
         [ExpectedException(typeof(ArgumentOutOfRangeException))]
-        public void PipeCtorThrowsOnNonPositiveBufferSize()
+        public void PipeCtorThrowsOnZeroBufferSize()
+        {
+            new Pipe(0);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void PipeCtorThrowsOnNegativeBufferSize()
         {
             new Pipe(-1);
         }
